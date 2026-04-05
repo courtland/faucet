@@ -3783,7 +3783,7 @@ class FaucetRouterConfigReloadTest(FaucetConfigReloadTestBase):
             conf,
             self.faucet_config_path,
             restart=True,
-            cold_start=False,
+            cold_start=True,
             change_expected=True,
         )
 

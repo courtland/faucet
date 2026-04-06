@@ -1713,6 +1713,19 @@ class DP(Conf):
                 return True
         return False
 
+    def _router_vlans_changed(self, new_dp):
+        """Return True if any router's VLAN membership changed."""
+        old_router_names = set(self.routers.keys())
+        new_router_names = set(new_dp.routers.keys())
+        if old_router_names != new_router_names:
+            return True
+        for rname in old_router_names:
+            old_vids = frozenset(v.vid for v in self.routers[rname].vlans)
+            new_vids = frozenset(v.vid for v in new_dp.routers[rname].vlans)
+            if old_vids != new_vids:
+                return True
+        return False
+
     def _get_router_affected_vlans(self, new_dp):
         """Return VIDs from all VLANs in any changed router (old + new)."""
         affected_vids = set()
@@ -1791,7 +1804,7 @@ class DP(Conf):
             )
             # Non-BGP router changes: mark affected VLANs as changed
             # (after port detection to avoid false all_ports_changed)
-            if new_dp.routers != self.routers:
+            if self._router_vlans_changed(new_dp):
                 logger.info("DP routers config changed (non-BGP) - warm start")
                 affected_vids = self._get_router_affected_vlans(new_dp)
                 changed_vlans.update(affected_vids)

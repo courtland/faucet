@@ -1589,6 +1589,8 @@ class DP(Conf):
             same_ports -= changed_ports
 
         all_changed_or_added = changed_vlans | added_vlans
+        # Track VLANs changed by config (before port-level cross-VLAN detection)
+        config_changed_vlans = set(changed_vlans)
         if not same_ports:
             all_ports_changed = True
         # TODO: optimize case where only VLAN ACL changed.
@@ -1662,8 +1664,10 @@ class DP(Conf):
         changed_vlans -= deleted_vlans
         changed_vlans -= added_vlans
         # Expand changed_vlans to include sibling VLANs in same routers
-        # (ensures inter-VLAN FIB entries from proactive learning are reinstalled)
-        for vid in list(changed_vlans):
+        # (ensures inter-VLAN FIB entries from proactive learning are reinstalled).
+        # Only expand for VLANs that genuinely changed in config, not ones added
+        # by port-level cross-VLAN detection (which could cause false warm restarts).
+        for vid in config_changed_vlans:
             vlan = new_dp.vlans.get(vid)
             if vlan and vlan.faucet_vips:
                 for router in new_dp.routers.values():

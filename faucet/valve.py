@@ -1621,7 +1621,10 @@ class Valve:
             return restart_type, ofmsgs
 
         restart_type = None
-        for change in changes:
+        # Check all fields except added_vids (position 11) which is
+        # informational for _apply_config_changes and already reflected
+        # in port/VLAN change sets.
+        for change in changes[:11]:
             if change:
                 restart_type = "warm"
                 break

@@ -1674,6 +1674,18 @@ class DP(Conf):
                     if vlan in router.vlans:
                         for sibling in router.vlans:
                             changed_vlans.add(sibling.vid)
+        # If changed_vlans only has VLANs from cross-VLAN detection (not from
+        # config changes) and all have VIPs, force cold start to preserve the
+        # old behavior. This prevents spurious warm restarts in stacking
+        # environments where config reparse produces false port changes.
+        if changed_vlans and not config_changed_vlans and not added_vlans:
+            changed_vlans_with_vips = [
+                new_dp.vlans[vid]
+                for vid in changed_vlans
+                if vid in new_dp.vlans and new_dp.vlans[vid].faucet_vips
+            ]
+            if changed_vlans_with_vips:
+                all_ports_changed = True
 
         return (
             all_ports_changed,

@@ -1834,8 +1834,10 @@ class DP(Conf):
             # VID modifications (which delete old VID and add new one) require
             # cold start. Other router changes (membership, addition, removal)
             # can warm-start when routing tables already exist.
-            routers_changed = new_dp.routers != self.routers
-            if routers_changed:
+            # Note: use _router_vlans_changed (compares resolved VID sets) not
+            # Router.__eq__ (compares orig_conf which uses VLAN names, missing
+            # VID changes).
+            if self._router_vlans_changed(new_dp) or (new_dp.routers != self.routers):
                 if deleted_vlans and added_vlans:
                     logger.info(
                         "DP routers config changed with VLAN replacement"

@@ -1826,19 +1826,20 @@ class DP(Conf):
                 changed_acls,
             )
             # Non-BGP router changes: mark affected VLANs as changed.
-            # Only warm-start when VLAN membership changed (not structural
-            # changes like VID modifications which add/delete VLANs).
+            # VID modifications (which delete old VID and add new one) require
+            # cold start. Pure membership changes (add existing VLAN to router)
+            # can warm-start.
             if self._router_vlans_changed(new_dp):
-                if not (deleted_vlans or added_vlans):
-                    logger.info("DP routers config changed (non-BGP) - warm start")
-                    affected_vids = self._get_router_affected_vlans(new_dp)
-                    changed_vlans.update(affected_vids)
-                else:
+                if deleted_vlans:
                     logger.info(
-                        "DP routers config changed with VLAN add/delete"
+                        "DP routers config changed with VLAN deletion"
                         " - requires cold start"
                     )
                     all_ports_changed = True
+                else:
+                    logger.info("DP routers config changed (non-BGP) - warm start")
+                    affected_vids = self._get_router_affected_vlans(new_dp)
+                    changed_vlans.update(affected_vids)
             return (
                 deleted_ports,
                 changed_ports,

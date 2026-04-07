@@ -1791,8 +1791,13 @@ class DP(Conf):
             logger.info("Stack root change - requires cold start")
         elif self._bgp_config_changed(new_dp):
             logger.info("BGP config changed - requires cold start")
-        elif set(self.routers.keys()) != set(new_dp.routers.keys()):
-            logger.info("DP routers added/removed - requires cold start")
+        elif set(self.routers.keys()) != set(new_dp.routers.keys()) and not any(
+            vlan.faucet_vips for vlan in self.vlans.values()
+        ):
+            # Routers added/removed with no existing routing tables requires
+            # cold start. When routing tables already exist (VIPs configured),
+            # router additions/removals can warm-start.
+            logger.info("DP routers added/removed (no routing) - requires cold start")
         elif not self.ignore_subconf(
             new_dp, ignore_keys=["interfaces", "interface_ranges", "routers"]
         ):
@@ -1827,9 +1832,10 @@ class DP(Conf):
             )
             # Non-BGP router changes: mark affected VLANs as changed.
             # VID modifications (which delete old VID and add new one) require
-            # cold start. Pure membership changes (adding/removing a VLAN
-            # from a router) can warm-start.
-            if self._router_vlans_changed(new_dp):
+            # cold start. Other router changes (membership, addition, removal)
+            # can warm-start when routing tables already exist.
+            routers_changed = new_dp.routers != self.routers
+            if routers_changed:
                 if deleted_vlans and added_vlans:
                     logger.info(
                         "DP routers config changed with VLAN replacement"
@@ -1837,7 +1843,7 @@ class DP(Conf):
                     )
                     all_ports_changed = True
                 else:
-                    logger.info("DP routers config changed (non-BGP) - warm start")
+                    logger.info("DP routers config changed - warm start")
                     affected_vids = self._get_router_affected_vlans(new_dp)
                     changed_vlans.update(affected_vids)
             return (

@@ -1730,11 +1730,16 @@ class DP(Conf):
         return False
 
     def _router_vlans_changed(self, new_dp):
-        """Return True if any router's VLAN membership changed."""
+        """Return True if an existing router's VLAN membership changed.
+
+        Only detects membership changes on routers that exist in both old
+        and new configs. Router additions/deletions are structural changes
+        that require cold start and are handled separately.
+        """
         old_router_names = set(self.routers.keys())
         new_router_names = set(new_dp.routers.keys())
         if old_router_names != new_router_names:
-            return True
+            return False
         for rname in old_router_names:
             old_vids = frozenset(v.vid for v in self.routers[rname].vlans)
             new_vids = frozenset(v.vid for v in new_dp.routers[rname].vlans)
@@ -1786,6 +1791,8 @@ class DP(Conf):
             logger.info("Stack root change - requires cold start")
         elif self._bgp_config_changed(new_dp):
             logger.info("BGP config changed - requires cold start")
+        elif set(self.routers.keys()) != set(new_dp.routers.keys()):
+            logger.info("DP routers added/removed - requires cold start")
         elif not self.ignore_subconf(
             new_dp, ignore_keys=["interfaces", "interface_ranges", "routers"]
         ):
